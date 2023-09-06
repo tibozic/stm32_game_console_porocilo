@@ -1,0 +1,1052 @@
+\documentclass{article}
+
+%
+% packages
+%
+% references
+\usepackage[backend=biber]{biblatex}
+% better padding
+\usepackage[margin=100px]{geometry}
+% images
+\usepackage{graphicx}
+% math symbols
+\usepackage{amsmath}
+% more symbols
+\usepackage{textcomp}
+% more math symbols
+\usepackage{amssymb}
+% links
+\usepackage{hyperref}
+% linsk jump to top of figures
+\usepackage[all]{hypcap}
+% floating options ([H])
+\usepackage{float}
+% source code
+\usepackage{listings}
+% indent first paragraph after section
+\usepackage{indentfirst}
+% continous enumeration
+\usepackage{enumitem}
+% cmark and xmark
+\usepackage{pifont}
+% colors
+\usepackage[table,x11names]{xcolor}
+% column style
+\usepackage{tabu}
+% section settings
+\usepackage{titlesec}
+% colors
+\usepackage{xcolor}
+
+\addbibresource{~/scripts/latex/ref.bib}
+
+%
+% custom commands
+%
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\lxor}{\veebar}
+\newcommand{\cmark}{\ding{51}}
+\newcommand{\xmark}{\ding{55}}
+
+% path for images
+\graphicspath{{images/}}
+
+% link stuff
+\hypersetup{
+	colorlinks=true,
+	linkcolor=blue,
+	filecolor=red,
+	runcolor=red,
+	urlcolor=cyan,
+	anchorcolor=black,
+	citecolor=.,
+	menucolor=red,
+	pdftitle={STM32 Igralna konzola},
+}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+% code stuff
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+% Extra subsections (parargaph)
+\setcounter{secnumdepth}{4}
+
+\titleformat{\paragraph}
+{\normalfont\normalsize\bfseries}{\theparagraph}{1em}{}
+\titlespacing*{\paragraph}
+{0pt}{3.25ex plus 1ex minus .2ex}{1.5ex plus .2ex}
+
+% programming stuff
+\lstset{language=Python}
+
+
+\author{Timotej Bo\v{z}i\v{c}, Nik Juki\v{c}}
+\title{STM32 Igralna Konzola}
+\date{2022}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+
+\clearpage
+
+\section{Uvod}
+\noindent
+Parts list:
+\begin{itemize}
+  \item STM32H750 Discovery kit
+\end{itemize}
+
+\noindent
+Za\v{c}etni cilj je bil vzpostavitev vgrajenega zaslona na
+plo\v{s}\v{c}i brez kakr\v{s}nekoli knji\v{z}nice in potem napisati
+neko osnovno knji\v{z}nico za uporabo grafi\v{c}nih elementov
+(risanje \v{c}rt, kvadratov, trikotnikov). \\
+Ker nama po kak\v{s}nem tednu raziskovanja, branja dokumentacije in testiranja
+ni uspelo narediti konkretnega napredka, sva se
+odlo\v{c}ila, da raje uporabiva knji\v{z}nico za vzpostavitev
+zaslona in risanje elementov, midva pa se bova bolj osredoto\v{c}ila
+na kon\v{c}en produkt, ki naj bi bil osnovna igralna konzola z nekaj
+enostavnimi igrami. \\
+Ker ima plo\v{s}\v{c}a, ki jo uporabljava na voljo zaslon z mo\v{z}nostjo
+detekcije dotika, sva so odlo\v{c}ila da uporabiva to namesto ``joystick'',
+saj v tem primeru, za implementacijo nebi potrebovala nobenih dodatnih
+delov. \\
+
+\noindent
+Knji\v{z}nico, ki sva jo uporabila je TouchGFX, ki je opitimiziran za
+uporabo z napravami STM32. Knji\v{z}nica je prilo\v{z}ena tudi z
+TouchGFX Designer, ki je orodje za grafi\v{c}no oblikovanje in deluje
+na principu ``What You See Is What You Get'' in omogo\v{c}a tudi
+``Drag \& Drop'' elementov. \\
+
+\section{Lastnosti TouchGFX}
+\subsection{TouchGFX Designer}
+\noindent
+TouchGFX Designer je zelo uporaben za osnovne in stati\v{c}ne
+strani, za kaj kompleksnej\v{s}ega pa je potrebna
+dodatna koda. \\
+
+\begin{figure}[H] % H means exactly in place
+  \centering
+  \includegraphics[width=0.6\textwidth]{elements.PNG}
+  \caption{Menu za dodajanje elementov}
+\end{figure}
+
+\begin{figure}[H] % H means exactly in place
+  \centering
+  \includegraphics[width=0.2\textwidth]{buttons.PNG}
+  \includegraphics[width=0.2\textwidth]{images.PNG}
+  \includegraphics[width=0.2\textwidth]{shapes.PNG}
+  \caption{Gumbi, slike in oblike}
+\end{figure}
+
+\begin{figure}[H] % H means exactly in place
+  \centering
+  \includegraphics[width=0.8\textwidth]{screen.PNG}
+  \caption{TouchGFX Designer celoten zaslon}
+\end{figure}
+
+\noindent
+Ko zaklju\v{c}imo z oblikovanjem zaslona, pritisnemo gumb ``simulate''
+v spodnjem desnem delu zaslona. To lahko naredimo le \v{c}e nismo
+uporabili nobenih zunanjih spremenljivk (zunanjih gumbov, LED, itd.).
+Ko to naredimo se bo na\v{s} projekt zgradil in ga lahko sedaj
+preizkusimo. \\
+V primeru uporabe zunanjih spremenljivk, pa
+moramo na\v{s} projekt zgraditi in nalo\v{z}iti na plo\v{s}\v{c}ico,
+ker nam v tem primeru moznost simulacije ni na voljo. To storimo tako,
+da pritisnemo gumb generate v spodnjem desnem kotu.
+Program nato generira kodo za na\v{s} dizajn. Projekt lahko sedaj
+odpremo v CubeIDE, kjer lahko spreminjamo kodo ali pa nalo\v{z}imo
+program na plo\v{s}\v{c}ico. \\
+
+\noindent
+Ko je projekt generiran, se ustvarijo dve glavni mapi:
+\begin{itemize}
+    \item generated
+    \item gui
+\end{itemize}
+
+\begin{figure}[H] % H means exactly in place
+  \centering
+  \includegraphics[width=0.25\textwidth]{closed.PNG}
+  \caption{Generirane datoteke}
+\end{figure}
+
+\noindent
+V mapi generated so definirani vsi elementi, ki smo jih ustvarili
+v TouchGFX Designer, slike ki smo jih dodali ter ``Base'' datoteke
+za vse poglede, ki smo jih ustvarili. V tej mapi ne smemo spreminjati
+nobenih datotek, saj bodo na\v{s}e spremembe povo\v{z}ene vsaki\v{c}
+ko spremenimo kaj v Designer-ju. \\
+\begin{figure}[H] % H means exactly in place
+  \centering
+  \includegraphics[width=0.4\textwidth]{generated.PNG}
+  \caption{Mapa generated}
+\end{figure}
+
+\noindent
+V mapi gui pa so datoteke za vsak pogled, ki smo ga ustvarili. Te
+datoteke so namenjene na\v{s}emu urejanju.
+\begin{figure}[H] % H means exactly in place
+  \centering
+  \includegraphics[width=0.4\textwidth]{gui.PNG}
+  \caption{Mapa gui}
+\end{figure}
+
+\subsection{TouchGFX Library}
+\noindent
+Ko je projekt zgeneriran je uporaba knji\v{z}nice dokaj
+preprosta. Na objekte kli\v{c}emo funkcije kot so .setXY(),
+.setVisible(), ali pa inicializiramo nove objekte s funkcijami kot
+so Box(). \\
+Ko nek objekt posodobimo ga mora\v{s} ozna\v{c}iti za ``redraw'' s
+funkcijo .invalidate(). \\
+Glavna slabost te knji\v{z}nice je, da morajo biti vsi elementi na
+ekranu stati\v{c}no definirani, to nama je povzro\v{c}alo precej te\v{z}av
+pri Snake game-u, saj sva morala maksimalno dol\v{z}ino ka\v{c}e
+dolo\v{c}iti stati\v{c}no, in za vsak njen del na za\v{c}etku programa
+stati\v{c}no rezervirati prostor. V primeru, da bi
+\v{z}elela imeti ka\v{c}o \v{c}ez cel ekran bi potrebovala okoli 250
+tiso\v{c} delov rezervirati stati\v{c}no na za\v{c}etku programa. To je
+zelo problemati\v{c}no, saj ponavadi vgrajene naprave nimajo na razpolago
+veliko pomnilnega prostora, ta pa bi bil zaseden skozi celoten \v{z}ivljenski
+cikel programa. Ta problem sva re\v{s}ila tako, da sva pove\v{c}ala \v{s}irino
+ka\v{c}e, kar je zmanj\v{s}alo \v{s}tevilo potrebnih delov na
+manj kot 5000, kar \v{s}e vedno ni idealno, je pa izvedljivo.
+
+
+\section{Main Menu}
+\noindent
+Izoblikovala sva preprost meni, preko katerega lahko igralec z dotikom
+izbira med vsemi igrami, ki so na voljo. \\
+\begin{figure}[H] % H means exactly in place
+  \centering
+  \includegraphics[width=0.4\textwidth]{menu.jpg}
+  \caption{Main menu}
+\end{figure}
+
+\section{Igre}
+\noindent
+Pri izboru iger, sva se omejila na tiste, ki bi bile relativno preproste
+za implementacijo, in med katerimi je prisotna raznolikost v samem
+igranju. Na koncu sva si izbrala tri ``retro'' igre in sku\v{s}ala
+ustvariti \v{c}im bolj zvesto rekreacijo.
+\begin{itemize}
+  \item Snake Game
+  \item Tic Tac Toe
+\end{itemize}
+
+\subsection{Snake Game}
+\noindent
+V tej igri nadzorujemo premikanje ka\v{c}e po 480x272 plo\v{s}\v{c}ic
+velikem prostoru. Po prostoru se naklju\v{c}no generira ko\v{s}\v{c}ek
+hrane. Ka\v{c}o premikamo s pritiski na smerne gumbe. \\
+
+\noindent
+Cilj igre je s ka\v{c}o pojesti \v{c}im ve\v{c} hrane brez da se ka\v{c}a
+zaleti sama vase ali v robove ekrana. \\
+Video:
+
+\subsubsection{Koda igre}
+\noindent
+Inicializacija spremenljivk.
+\begin{lstlisting}[language=c++]
+bool game_started = false;
+short snake_direction = SNAKE_DOWN;
+int snake_length = 1;
+
+snake_piece *head = NULL;
+snake_piece *tail = NULL;
+
+touchgfx::Box snake_pixels[MAX_SNAKE_PIECES];
+\end{lstlisting}
+
+\noindent
+Inicializacija za\v{c}etnega stanja igre, kar vklju\v{c}uje:
+\begin{itemize}
+    \item za\v{c}etna pozicija in orientacija ka\v{c}e
+    \item skritje gumbov in oken prej\v{s}nih instanc
+\end{itemize}
+\begin{lstlisting}[language=c++]
+void screen_snake_gameView::game_snake_start()
+{
+	// first hide the button
+	btn_snake_start.setVisible(false);
+	btn_snake_start.invalidate();
+
+	btn_back.setVisible(false);
+	btn_back.invalidate();
+
+	snake_head.setVisible(false);
+	snake_head.invalidate();
+
+	lbl_game_over.setVisible(false);
+	lbl_game_over.invalidate();
+
+	snake_pixels[0] = Box();
+
+	if( head == NULL )
+		head = (snake_piece*)malloc(sizeof(snake_piece));
+
+	if( head == NULL ) {
+		error();
+		return;
+	}
+
+	head->pixel = &snake_pixels[0];
+
+	head->pixel->setPosition(10, 20, 10, 10);
+	head->pixel->setColor(touchgfx::Color::getColorFromRGB(0, 255, 50));
+	add(*head->pixel);
+	head->pixel->getParent()->invalidate();
+
+	head->next = NULL;
+	head->prev = NULL;
+	head->old_x = 0;
+	head->old_y = 0;
+
+	tail = head;
+
+	snake_direction = SNAKE_DOWN;
+
+	snake_length = 1;
+
+	game_started = true;
+
+	// game_snake_loop();
+}
+\end{lstlisting}
+
+\noindent
+Vecina kode se nahaja v glavni funkciji, ki je v bistvu glavna
+zanka celotne igre. \\
+
+\noindent
+Pregledamo \v{c}e je glava ka\v{c}e izven igralnega polja
+\begin{lstlisting}[language=c++]
+if( head->pixel->getX() > SCREEN_WIDTH || head->pixel->getX() < 0 ||
+    head->pixel->getY() > SCREEN_HEIGHT || head->pixel->getY() < 0)
+{
+    game_started = false;
+}
+\end{lstlisting}
+
+\noindent
+Pregledamo \v{c}e se je ka\v{c}a zaletela sama vase
+\begin{lstlisting}[language=c++]
+snake_piece *snake_part = head->next;
+while( snake_part != NULL )
+{
+    if( snake_part->pixel->getX() == head->pixel->getX() && snake_part->pixel->getY() == head->pixel->getY() ) {
+        game_started = false;
+        break;
+    }
+
+    snake_part = snake_part->next;
+}
+\end{lstlisting}
+
+\noindent
+Pregledamo, \v{c}e je ka\v{c}a pojedla hrano
+\begin{lstlisting}[language=c++]
+snake_part = head;
+
+while( snake_part != NULL )
+{
+    if( snake_part->pixel->getX() == food.getX() && snake_part->pixel->getY() == food.getY() ) {
+      // ...
+    }
+    snake_part = snake_part->next;
+}
+\end{lstlisting}
+
+\noindent
+V primeru, da je ka\v{c}a pojedla hrano, jo moramo podalj\v{s}ati (dodati
+nov del)
+\begin{lstlisting}[language=c++]
+snake_piece *new_piece = (snake_piece*)malloc(sizeof(snake_piece));
+
+if( new_piece == NULL ) {
+    error();
+    return;
+}
+
+snake_pixels[snake_length-1] = Box();
+new_piece->pixel = &snake_pixels[snake_length-1];
+new_piece->pixel->setPosition(0, 0, PIXEL_WIDTH, PIXEL_HEIGHT);
+new_piece->pixel->setColor(touchgfx::Color::getColorFromRGB(255, 130, 0));
+new_piece->pixel->setVisible(true);
+add(*new_piece->pixel);
+new_piece->pixel->getParent()->invalidate();
+
+tail->next = new_piece;
+new_piece->prev = tail;
+new_piece->next = NULL;
+new_piece->old_x = 0;
+new_piece->old_y = 0;
+tail = new_piece;
+\end{lstlisting}
+
+\noindent
+\v{C}e je ka\v{c}a pojedla hrano moramo tudi generirati nov kos hrane.
+\begin{lstlisting}[language=c++]
+int food_new_x = pseudo_random(tick) % SCREEN_WIDTH;
+int food_new_y = pseudo_random2(tick) % SCREEN_HEIGHT;
+
+food_new_x = food_new_x - (food_new_x % 10);
+food_new_y = food_new_y - (food_new_y % 10);
+
+food.setXY(food_new_x, food_new_y);
+food.invalidate();
+
+Unicode::snprintf(lbl_score_valBuffer, LBL_SCORE_VAL_SIZE, "%d", snake_length);
+lbl_score_val.invalidate();
+\end{lstlisting}
+
+\noindent
+Premik ka\v{c}e za eno polje
+\begin{lstlisting}[language=c++]
+if( snake_direction == SNAKE_RIGHT )
+{
+    head->old_x = head->pixel->getX();
+    head->old_y = head->pixel->getY();
+    head->pixel->setXY(head->old_x+(SNAKE_MOVE), head->old_y);
+    head->pixel->getParent()->invalidate();
+
+    snake_piece *piece = head->next;
+    while( piece != NULL )
+    {
+        piece->old_x = piece->pixel->getX();
+        piece->old_y = piece->pixel->getY();
+        piece->pixel->setXY(piece->prev->old_x, piece->prev->old_y);
+        piece->pixel->getParent()->invalidate();
+        piece = piece->next;
+    }
+}
+else if( snake_direction == SNAKE_LEFT )
+{
+    head->old_x = head->pixel->getX();
+    head->old_y = head->pixel->getY();
+    head->pixel->setXY(head->old_x-(SNAKE_MOVE), head->old_y);
+    head->pixel->getParent()->invalidate();
+
+    snake_piece *piece = head->next;
+    while( piece != NULL )
+    {
+        piece->old_x = piece->pixel->getX();
+        piece->old_y = piece->pixel->getY();
+        piece->pixel->setXY(piece->prev->old_x, piece->prev->old_y);
+        piece->pixel->getParent()->invalidate();
+        piece = piece->next;
+    }
+}
+else if( snake_direction == SNAKE_UP )
+{
+    head->old_x = head->pixel->getX();
+    head->old_y = head->pixel->getY();
+    head->pixel->setXY(head->old_x, head->old_y-(SNAKE_MOVE));
+    head->pixel->getParent()->invalidate();
+
+    snake_piece *piece = head->next;
+    while( piece != NULL )
+    {
+        piece->old_x = piece->pixel->getX();
+        piece->old_y = piece->pixel->getY();
+        piece->pixel->setXY(piece->prev->old_x, piece->prev->old_y);
+        piece->pixel->getParent()->invalidate();
+        piece = piece->next;
+    }
+}
+else if( snake_direction == SNAKE_DOWN )
+{
+    head->old_x = head->pixel->getX();
+    head->old_y = head->pixel->getY();
+    head->pixel->setXY(head->old_x, head->old_y+(SNAKE_MOVE));
+    head->pixel->getParent()->invalidate();
+
+    snake_piece *piece = head->next;
+    while( piece != NULL )
+    {
+        piece->old_x = piece->pixel->getX();
+        piece->old_y = piece->pixel->getY();
+        piece->pixel->setXY(piece->prev->old_x, piece->prev->old_y);
+        // piece->pixel->setXY(head->old_x, head->old_y+(SNAKE_MOVE));
+        piece->pixel->getParent()->invalidate();
+        piece = piece->next;
+    }
+}
+
+head->pixel->getParent()->invalidate();
+\end{lstlisting}
+
+\noindent
+Ko igralec pritisne gumb za spremembo smeri ka\v{c}e, se kli\v{c}e
+naslednja funkcija (za vsako smer druga), ki shrani smer v globalno
+spremenljivko.
+\begin{lstlisting}[language=c++]
+void screen_snake_gameView::change_direction_up() {
+	snake_direction = SNAKE_UP;
+}
+\end{lstlisting}
+
+\noindent
+Funkciji za generiranje pozicije novega kosa hrane.
+\begin{lstlisting}[language=c++]
+int screen_snake_gameView::pseudo_random(int tick) {
+	return (3*snake_length + SNAKE_SPEED*3*tick + 3*tail->pixel->getX() * 3*tail->pixel->getY());
+}
+
+int screen_snake_gameView::pseudo_random2(int tick) {
+	return (7*snake_length + SNAKE_SPEED*7*tick + 7*tail->pixel->getX() * 7*tail->pixel->getY());
+}
+\end{lstlisting}
+
+\subsection{Tic Tac Toe}
+\noindent
+To je vsem znana igra za 2 igralca, kjer je cilj biti prvi igralec, ki
+spravi 3 enake simbole v vrsto. \\
+Video:
+
+\subsubsection{Koda igre}
+\noindent
+Inicializacija spremenljivk.
+\begin{lstlisting}[language=c++]
+char board[3][3];
+bool turn = true; // true -> player 1, false -> player2
+short turn_number = 0;
+bool game_over = false;
+short result = 0;
+\end{lstlisting}
+
+\noindent
+Ponastavimo stanje igralne plo\v{s}\v{c}e, v primeru da to ni prva
+instanca igre, ki jo igramo. Skrijemo se morebitna okna in gumbe
+prej\v{s}nih instanc.
+\begin{lstlisting}[language=c++]
+screen_tictactoe_gameView::screen_tictactoe_gameView()
+{
+    for(short i = 0; i < 3; ++i) {
+        for(short j = 0; j < 3; ++j) {
+            board[i][j] = 0;
+        }
+    }
+
+
+    game_over = false;
+    lbl_game_over.setVisible(false);
+    lbl_game_over.invalidate();
+
+    box_background.setVisible(false);
+    box_background.invalidate();
+
+    lbl_result.setVisible(false);
+    lbl_result.invalidate();
+
+    btn_back.setVisible(false);
+    btn_back.invalidate();
+
+    turn_number = 0;
+
+    turn = true;
+}
+\end{lstlisting}
+
+\noindent
+Za vsako polje moramo voditi posebej spremenljivke in metodo, ki
+hranijo podatke o stanju igre in preverjajo \v{c}e se je igra \v{z}e
+zaklju\v{c}ila.
+
+\begin{lstlisting}[language=c++]
+void screen_tictactoe_gameView::pos1_clicked() {
+	if( !game_over && board[0][0] == 0 ) {
+		if( turn ) {
+			board[0][0] = 'X';
+			pos1_cross.setVisible(true);
+			pos1_cross.invalidate();
+		} else {
+			board[0][0] = 'O';
+			pos1_circle.setVisible(true);
+			pos1_circle.invalidate();
+		}
+
+		turn_number++;
+
+		short temp_result = is_game_over(0, 0);
+
+		if( temp_result != 0 ) {
+			game_over = true;
+			result = temp_result;
+			return;
+		}
+
+		turn = !turn;
+	}
+}
+\end{lstlisting}
+
+\noindent
+V tem delu kode pa glede na stanje spremenljivke game\_over izri\v{s}emo
+kon\v{c}ni ekran.
+\begin{lstlisting}[language=c++]
+void screen_tictactoe_gameView::handleTickEvent() {
+	if( game_over ) {
+		btn_back.setVisible(true);
+		btn_back.invalidate();
+
+		box_background.setVisible(true);
+		box_background.invalidate();
+
+		lbl_game_over.setVisible(true);
+		lbl_game_over.invalidate();
+
+		lbl_result.setVisible(true);
+
+		if( result == 1 )
+			Unicode::snprintf(lbl_resultBuffer, LBL_RESULT_SIZE, "Player 1 wins");
+		else if( result == 2 )
+			Unicode::snprintf(lbl_resultBuffer, LBL_RESULT_SIZE, "Player 2 wins");
+		else if( result == 3 )
+			Unicode::snprintf(lbl_resultBuffer, LBL_RESULT_SIZE, "Tie");
+
+		lbl_result.invalidate();
+	}
+	else {
+		if( turn_number == 0 ) {
+			btn_back.setVisible(true);
+			btn_back.invalidate();
+		}
+		else {
+			btn_back.setVisible(false);
+			btn_back.invalidate();
+		}
+
+		if( turn )
+			Unicode::snprintf(lbl_turnBuffer, LBL_TURN_SIZE, "1");
+		else
+			Unicode::snprintf(lbl_turnBuffer, LBL_TURN_SIZE, "2");
+
+		lbl_turn.invalidate();
+	}
+}
+\end{lstlisting}
+
+\noindent
+Sama metoda, ki se izvede ob pritisku na polje, da se preveri morebiten
+konec igre.
+
+\begin{lstlisting}[language=c++]
+short screen_tictactoe_gameView::is_game_over(int x, int y) {
+	// 0 -> game isn't over
+	// 1 -> player 1 wins
+	// 2 -> player 2 wins
+	// 3 -> tie
+
+	char symbol;
+
+	if(turn)
+		symbol = 'X';
+	else
+		symbol = 'O';
+
+    //check col
+    for(short i = 0; i < 3; i++){
+        if(board[x][i] != symbol)
+            break;
+        if(i == 3-1){
+            if( turn )
+            	return 1;
+            else
+            	return 2;
+        }
+    }
+
+    //check row
+    for(int i = 0; i < 3; i++){
+        if(board[i][y] != symbol)
+            break;
+        if(i == 3-1){
+            if( turn )
+            	return 1;
+            else
+            	return 2;
+        }
+    }
+
+    //check diagonal
+    if(x == y){
+        //we're on a diagonal
+        for(int i = 0; i < 3; i++){
+            if(board[i][i] != symbol)
+                break;
+            if(i == 3-1){
+                if( turn )
+                	return 1;
+                else
+                	return 2;
+            }
+        }
+    }
+
+    //check anti diag
+    if(x + y == 3-1){
+        for(int i = 0; i < 3; i++){
+            if(board[i][(3-1)-i] != symbol)
+                break;
+            if(i == 3-1){
+                if( turn )
+                	return 1;
+                else
+                	return 2;
+            }
+        }
+    }
+
+	if( turn_number == 9 )
+		return 3;
+
+	return 0;
+}
+\end{lstlisting}
+
+\subsection{Space invaders}
+\noindent
+Cilj igre je odstraniti vse nasprotnike preden pridejo do
+igral\v{c}eve ladje. \\
+Video:
+
+\subsubsection{Koda igre}
+\noindent
+Inicializacija spremenljivk
+\begin{lstlisting}[language=c++]
+touchgfx::ScalableImage enemies[NUM_OF_ENEMIES];
+int enemy_move_direction = MOVE_RIGHT;
+
+bool invaders_game_over = false;
+int enemies_killed = 0;
+\end{lstlisting}
+
+\noindent
+Inicializacija zacetnega stanja, ki vsebuje:
+\begin{itemize}
+  \item Za\v{c}etna pozicija ladje
+  \item Skritje gumbov prej\v{s}nih instanc iger
+  \item Postavitev vseh nasprotnikov
+\end{itemize}
+\begin{lstlisting}[language=c++]
+screen_space_invadersView::screen_space_invadersView()
+{
+	// Hide the reference enemy
+	enemy1.setVisible(false);
+	enemy1.invalidate();
+
+	// hide the bullet
+	bullet.setVisible(false);
+	bullet.setXY(-1, -1);
+	bullet.invalidate();
+
+	bullet_enemy.setVisible(false);
+	bullet_enemy.setXY(-1, -1);
+	bullet_enemy.invalidate();
+
+	lbl_game_over.setVisible(false);
+	lbl_game_over.invalidate();
+
+	btn_back.setVisible(false);
+	btn_back.invalidate();
+
+	lbl_lose.setVisible(false);
+	lbl_lose.invalidate();
+
+	lbl_win.setVisible(false);
+	lbl_win.invalidate();
+
+	enemies_killed = 0;
+
+	enemy_move_direction = MOVE_RIGHT;
+
+	// Initialize all the enemies
+	int current_x = 0;
+	int current_y = 0;
+	int counter = 0;
+
+	for(int i = 0; i < NUM_OF_ROWS_OF_ENEMIES; ++i) {
+		current_x = 0;
+		for(int j = 0; j < NUM_OF_ENEMIES_PER_ROW; ++j) {
+			enemies[counter].setBitmap(touchgfx::Bitmap(BITMAP_SPACE_INVADERS_ENEMY_ID));
+			enemies[counter].setPosition(current_x, current_y, 50, 52);
+			enemies[counter].setScalingAlgorithm(touchgfx::ScalableImage::NEAREST_NEIGHBOR);
+			enemies[counter].setVisible(true);
+			add(enemies[counter]);
+			enemies[counter].invalidate();
+
+			current_x += enemy1.getWidth() + SPACE_BETWEEN_ENEMIES_X;
+			counter++;
+		}
+		current_y += enemy1.getHeight() + SPACE_BETWEEN_ENEMIES_Y;
+	}
+
+	invaders_game_over = false;
+}
+\end{lstlisting}
+
+\noindent
+Vsako urino periodo premaknemo metek, \v{c}e je bil ta izstreljen.
+\begin{lstlisting}[language=c++]
+if( bullet.isVisible() ) {
+    bullet.setY(bullet.getY() - BULLET_MOVE_SPEED);
+    bullet.invalidate();
+
+    if( bullet.getY()+bullet.getHeight() < 0 ) {
+        bullet.setVisible(false);
+        bullet.invalidate();
+    }
+}
+\end{lstlisting}
+
+\noindent
+\v{C}e je igralec pritisnik gumb moramo tudi premakniti ladjo.
+\begin{lstlisting}[language=c++]
+if( btn_left.getPressedState() && ship.getX() > 0 ) {
+    ship.setX(ship.getX() - SHIP_MOVE_SPEED);
+}
+else if( btn_right.getPressedState() && ship.getX() + ship.getWidth() < SCREEN_WIDTH ) {
+    ship.setX(ship.getX() + SHIP_MOVE_SPEED);
+}
+ship.getParent()->invalidate();
+\end{lstlisting}
+
+\noindent
+Nasprotnik lahko tudi izstreli metek, vendar je lahko na ekranu
+le en nasprotnikov metek hkrati.
+\begin{lstlisting}[language=c++]
+if( !bullet_enemy.isVisible() ) {
+    for(int i = 0; i < NUM_OF_ENEMIES; ++i) {
+        if( !enemies[i].isVisible() )
+            continue;
+
+        if( pseudo_random(tick) < 10 && tick % 13 == 0 ) {
+            bullet_enemy.setVisible(true);
+            bullet_enemy.setXY(enemies[i].getX() + enemies[i].getWidth()/2, enemies[i].getY() + enemies[i].getHeight());
+            bullet_enemy.invalidate();
+            break;
+        }
+    }
+} else {
+    bullet_enemy.setY(bullet_enemy.getY() + BULLET_MOVE_SPEED);
+
+    if( bullet_enemy.getY() > SCREEN_HEIGHT ) {
+        bullet_enemy.setVisible(false);
+    }
+    bullet_enemy.invalidate();
+}
+\end{lstlisting}
+
+\noindent
+Premaknemo nasprotnike po vnaprej dolo\v{c}eni poti ter preverimo
+\v{c}e je igre konec.
+\begin{lstlisting}[language=c++]
+static int pixels_moved = 0;
+
+if( ++tick%10 == 0 ) {
+    if( enemy_move_direction == MOVE_RIGHT ) {
+        if( enemies[NUM_OF_ENEMIES_PER_ROW-1].getX() + enemies[NUM_OF_ENEMIES_PER_ROW].getWidth() < SCREEN_WIDTH ) {
+            for(int i = 0; i < NUM_OF_ENEMIES; ++i) {
+                enemies[i].setX(enemies[i].getX() + ENEMY_MOVE_SPEED);
+                enemies[i].invalidate();
+            }
+        } else {
+            enemy_move_direction = MOVE_DOWN;
+        }
+    }
+    else if( enemy_move_direction == MOVE_LEFT ) {
+        if( enemies[0].getX() > 10 ) {
+            for(int i = 0; i < NUM_OF_ENEMIES; ++i) {
+                enemies[i].setX(enemies[i].getX() - ENEMY_MOVE_SPEED);
+                enemies[i].invalidate();
+            }
+        } else {
+            enemy_move_direction = MOVE_DOWN;
+        }
+    }
+    else if( enemy_move_direction == MOVE_DOWN ) {
+        if( pixels_moved < enemies[0].getHeight()/2 ) {
+            for(int i = 0; i < NUM_OF_ENEMIES; ++i) {
+                enemies[i].setY(enemies[i].getY() + ENEMY_MOVE_SPEED);
+                enemies[i].invalidate();
+                pixels_moved += ENEMY_MOVE_SPEED;
+            }
+        }
+        else {
+            pixels_moved = 0;
+            if( enemies[NUM_OF_ENEMIES_PER_ROW-1].getX() + enemies[NUM_OF_ENEMIES_PER_ROW].getWidth() < SCREEN_WIDTH ) {
+                enemy_move_direction = MOVE_RIGHT;
+            }
+            else {
+                enemy_move_direction = MOVE_LEFT;
+            }
+        }
+    }
+}
+
+check_game_over();
+\end{lstlisting}
+
+\noindent
+\v{C}e je igralec pritisnik gumb za strel ustvarimo metek.
+\begin{lstlisting}[language=c++]
+void screen_space_invadersView::fire_bullet()
+{
+	if( !bullet.isVisible() )
+	{
+		bullet.setXY(ship.getX() + (ship.getWidth()/2 - bullet.getWidth()/2), ship.getY() - bullet.getHeight()/2);
+		bullet.setVisible(true);
+		bullet.invalidate();
+	}
+}
+\end{lstlisting}
+
+\noindent
+Pregledamo \v{c}e je metek zadel katerega od nasprotnikov, \v{c}e je
+nasprotnika in metek odstranimo.
+\begin{lstlisting}[language=c++]
+void screen_space_invadersView::check_bullet_hitbox()
+{
+	if( bullet.isVisible() ) {
+		for(int i = 0; i < NUM_OF_ENEMIES; ++i ) {
+			if( !enemies[i].isVisible() )
+				continue;
+
+			if( (bullet.getX() < enemies[i].getX()+enemies[i].getWidth()
+				&& bullet.getX() > enemies[i].getX()
+				&& bullet.getY() > enemies[i].getY()
+				&& bullet.getY() < enemies[i].getY() + enemies[i].getHeight())
+				|| (bullet.getX() + bullet.getWidth() < enemies[i].getX()+enemies[i].getWidth()
+					&& bullet.getX() + bullet.getWidth() > enemies[i].getX()
+					&& bullet.getY() > enemies[i].getY()
+					&& bullet.getY() < enemies[i].getY() + enemies[i].getHeight())	)
+			{
+				// The bullet hit an enemy
+
+				// remove the enemy
+				enemies[i].setVisible(false);
+				enemies[i].invalidate();
+
+				// remove the bullet
+				bullet.setVisible(false);
+				bullet.setXY(-1, -1);
+				bullet.invalidate();
+
+				enemies_killed++;
+				break;
+			}
+
+		}
+	}
+}
+\end{lstlisting}
+
+\noindent
+Funkcija za pregled konca igre.
+\begin{lstlisting}[language=c++]
+void screen_space_invadersView::check_game_over()
+{
+	// check that the player hasn't killed all the enemies
+	invaders_game_over = true;
+	for(int i = 0; i < NUM_OF_ENEMIES; ++i) {
+		if( enemies[i].isVisible()) {
+			invaders_game_over = false;
+			break;
+		}
+	}
+
+	// check that the enemy hasn't collided with the player
+	for(int i = 0; i < NUM_OF_ENEMIES; ++i) {
+		if( !enemies[i].isVisible() )
+			continue;
+
+		if( (ship.getX() < enemies[i].getX()+enemies[i].getWidth()
+			&& ship.getX()+ship.getWidth() > enemies[i].getX()
+			&& ship.getY() + ship.getHeight() > enemies[i].getY()
+			&& ship.getY() + ship.getHeight()/2 < enemies[i].getY() + enemies[i].getHeight()))
+		{
+			// Enemy collided with the player
+			invaders_game_over = true;
+			return;
+		}
+	}
+
+	// check that the enemy bullet didn't hit the player
+	if( (ship.getX() < bullet_enemy.getX()+bullet_enemy.getWidth()
+		&& ship.getX()+ship.getWidth() > bullet_enemy.getX()
+		&& ship.getY() + ship.getHeight() > bullet_enemy.getY()
+		&& ship.getY() + ship.getHeight()/2 < bullet_enemy.getY() + bullet_enemy.getHeight()))
+	{
+		// Enemy collided with the player
+		invaders_game_over = true;
+		return;
+	}
+
+	// check that the enemy hasn't made it past the player
+	for(int i = 0; i < NUM_OF_ENEMIES; ++i) {
+		if( !enemies[i].isVisible() )
+			continue;
+
+		if( enemies[i].getY() > SCREEN_HEIGHT ) {
+			// Enemy has gone past the player
+			invaders_game_over = true;
+			return;
+		}
+	}
+}
+\end{lstlisting}
+
+\noindent
+Funkcija za generiranje naklju\v{c}nega \v{s}tevila.
+\begin{lstlisting}[language=c++]
+int screen_space_invadersView::pseudo_random(int tick)
+{
+	int bullet_x = 7;
+	int bullet_y = 7;
+
+	if( bullet.getX() > 0 )
+		bullet_x = bullet.getX();
+
+	if( bullet.getX() > 0 )
+		bullet_y = bullet.getY();
+
+	return ((7*tick+13*ship.getX()) + (3*bullet_x+3*bullet_y)) % 100;
+}
+\end{lstlisting}
+
+\clearpage
+\section{References}
+\noindent
+
+\printbibliography
+
+\end{document}
