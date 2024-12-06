@@ -1,7 +1,10 @@
 # Poročilo izdelave projekta igralne konzole na sistemu STM32H750
 
-Celotno poročilo: 
+Celotno poročilo: <br>
 [STM32_console_porocilo.pdf](https://github.com/tibozic/stm32_game_console_porocilo/blob/master/STM32_console_porocilo.pdf)
+
+Koda originalnega projekta: <br>
+[Github](https://github.com/tibozic/stm32_game_console)
 
 ## Video delovanja
 ### Snake game
